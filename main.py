@@ -93,7 +93,6 @@ def playlist_items(plid,next_page_video=None,vidcount=0):
 
   videos=[]
 
-  next_page_video=pl["nextPageToken"]
   cur_page_num=pl["pageInfo"]["resultsPerPage"]
   total_num=pl["pageInfo"]["totalResults"]
 
@@ -102,9 +101,10 @@ def playlist_items(plid,next_page_video=None,vidcount=0):
       videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
     return videos
   else:
+    next_page_video=pl["nextPageToken"]
     for p in pl["items"]:
       videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
-    videos.append(playlist_items(plid,next_page_video,vidcount+cur_page_num))
+    videos.extend(playlist_items(plid,next_page_video,vidcount+cur_page_num))
     return videos
 
 
