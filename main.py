@@ -73,38 +73,65 @@ channel= youtube.channels().list(
 my_channel_id=channel["items"][0]["id"]
 
 
+def playlist_items(plid,next_page_video=None,vidcount=0):
+  maxres=2;
 
-pl= youtube.playlistItems().list(
-  playlistId="PLD3A38DE4171C4133",
-  part="snippet",
-  #maxResults=50
-  maxResults=2
-).execute()
+  if next_page_video==None:
+    pl= youtube.playlistItems().list(
+      playlistId=plid,
+      part="snippet",
+      #maxResults=50
+      maxResults=maxres
+    ).execute()
+  else:
+    pl=youtube.playlistItems().list(
+      playlistId=plid,
+      part="snippet",
+      maxResults=maxres,
+      pageToken=next_page_video
+    ).execute()
 
-items_per_page_video=pl["pageInfo"]["resultsPerPage"]
-page_total_video=pl["pageInfo"]["totalResults"]
+  videos=[]
 
-next_page_video=pl["nextPageToken"]
+  next_page_video=pl["nextPageToken"]
+  cur_page_num=pl["pageInfo"]["resultsPerPage"]
+  total_num=pl["pageInfo"]["totalResults"]
 
-videos=[]
+  if(vidcount+cur_page_num>=total_num):
+    for p in pl["items"]:
+      videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
+    return videos
+  else:
+    for p in pl["items"]:
+      videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
+    videos.append(playlist_items(plid,next_page_video,vidcount+cur_page_num))
+    return videos
 
-for p in pl["items"]:
-  videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
+
+pprint(playlist_items("PLD3A38DE4171C4133"))
 
 
-for i in range(page_total_video//items_per_page_video):
-  pl_next=youtube.playlistItems().list(
-    playlistId="PLD3A38DE4171C4133",
-    part="snippet",
-    maxResults=50,
-    pageToken=next_page_video
-  ).execute()
+#next_page_video=pl["nextPageToken"]
 
-  for p in pl_next["items"]:
-    videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
 
-  if "nextPageToken" in pl_next:
-    next_page_video=pl_next["nextPageToken"]
+
+# for p in pl["items"]:
+#   videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
+
+
+# for i in range(page_total_video//items_per_page_video):
+#   pl_next=youtube.playlistItems().list(
+#     playlistId="PLD3A38DE4171C4133",
+#     part="snippet",
+#     maxResults=50,
+#     pageToken=next_page_video
+#   ).execute()
+
+#   for p in pl_next["items"]:
+#     videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
+
+#   if "nextPageToken" in pl_next:
+#     next_page_video=pl_next["nextPageToken"]
 
 #check it totalreplycount is not zero then go into
 #child comments tree for checking
