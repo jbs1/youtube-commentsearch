@@ -73,14 +73,18 @@ channel= youtube.channels().list(
 my_channel_id=channel["items"][0]["id"]
 
 
-def playlist_items(plid,next_page_video=None,vidcount=0):
-  maxres=2;
+def playlist_items(plid,next_page=None,vidcount=0):
+  """
+  playlist_items gets a playlist id and recusivly assembles a list of of all the videos
+  in the list, returning a list with videotitle and ID
+  """
+  maxres=50;  #more time efficient the more results it can fetch per request
+              #210 items => 1->16s | 5->4s | 50->1.3s
 
-  if next_page_video==None:
+  if next_page==None:
     pl= youtube.playlistItems().list(
       playlistId=plid,
       part="snippet",
-      #maxResults=50
       maxResults=maxres
     ).execute()
   else:
@@ -88,86 +92,150 @@ def playlist_items(plid,next_page_video=None,vidcount=0):
       playlistId=plid,
       part="snippet",
       maxResults=maxres,
-      pageToken=next_page_video
+      pageToken=next_page
     ).execute()
 
   videos=[]
 
   cur_page_num=pl["pageInfo"]["resultsPerPage"]
-  total_num=pl["pageInfo"]["totalResults"]
+  if "totalResults" in pl["pageInfo"]:
+    total_num=pl["pageInfo"]["totalResults"]
+  else:
+    total_num=pl["pageInfo"]["resultsPerPage"]
 
   if(vidcount+cur_page_num>=total_num):
     for p in pl["items"]:
       videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
     return videos
   else:
-    next_page_video=pl["nextPageToken"]
+    next_page=pl["nextPageToken"]
     for p in pl["items"]:
       videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]]);
-    videos.extend(playlist_items(plid,next_page_video,vidcount+cur_page_num))
+    videos.extend(playlist_items(plid,next_page,vidcount+cur_page_num))
     return videos
 
 
-pprint(playlist_items("PLD3A38DE4171C4133"))
+
+def get_reply_ids(cid,next_page=None,repcount=0):
+  """
+  fetches recusivly all replies to a comments identified by cid.
+  returns list with replyid and  authorname
+  """
+  maxres=100;  #more time efficient the more results it can fetch per request
+
+  if next_page==None:
+    rp= youtube.comments().list(
+      parentId=cid,
+      part="snippet",
+      maxResults=maxres
+    ).execute()
+  else:
+    rp=youtube.comments().list(
+      parentId=cid,
+      part="snippet",
+      maxResults=maxres,
+      pageToken=next_page
+    ).execute()
+
+  replies=[]
+  cur_page_num=rp["pageInfo"]["resultsPerPage"]
+  if "totalResults" in rp["pageInfo"]:
+    total_num=rp["pageInfo"]["totalResults"]
+  else:
+    total_num=rp["pageInfo"]["resultsPerPage"]
 
 
-#next_page_video=pl["nextPageToken"]
+
+  if(repcount+cur_page_num>=total_num):
+    for r in rp["items"]:
+      replies.append([r["id"],r["snippet"]["authorDisplayName"]]);
+    return replies
+  else:
+    next_page=rp["nextPageToken"]
+    for r in rp["items"]:
+      replies.append([r["id"],r["snippet"]["authorDisplayName"]]);
+    replies.extend(playlist_items(cid,next_page,repcount+cur_page_num))
+    return replies
 
 
 
-# for p in pl["items"]:
-#   videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
+
+def get_comment_ids(vid,next_page=None,comcount=0):
+  """
+  fetches recusivly all comments for a video identified by cid and their replies using get_reply_ids().
+  returns list with commentid and authorname
+  """
+  maxres=100;  #more time efficient the more results it can fetch per request
+
+  if next_page==None:
+    ct= youtube.commentThreads().list(
+      videoId=vid,
+      part="snippet",
+      maxResults=maxres
+    ).execute()
+  else:
+    ct=youtube.commentThreads().list(
+      videoId=vid,
+      part="snippet",
+      maxResults=maxres,
+      pageToken=next_page
+    ).execute()
+
+  comments=[]
+
+  cur_page_num=ct["pageInfo"]["resultsPerPage"]
+  if "totalResults" in ct["pageInfo"]:
+    total_num=ct["pageInfo"]["totalResults"]
+  else:
+    total_num=ct["pageInfo"]["resultsPerPage"]
+
+  if(comcount+cur_page_num>=total_num):
+    for c in ct["items"]:
+      comments.append([c["snippet"]["topLevelComment"]["id"],c["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"]]);
+      if(c["snippet"]["totalReplyCount"]!=0):
+        comments.extend(get_reply_ids(c["snippet"]["topLevelComment"]["id"]))
+    return comments
+  else:
+    next_page=ct["nextPageToken"]
+    for c in ct["items"]:
+      comments.append([c["snippet"]["topLevelComment"]["id"],c["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"]]);
+      if(c["snippet"]["totalReplyCount"]!=0):
+        comments.extend(get_reply_ids(c["snippet"]["topLevelComment"]["id"]))
+    comments.extend(playlist_items(vid,next_page,comcount+cur_page_num))
+    return comments
 
 
-# for i in range(page_total_video//items_per_page_video):
-#   pl_next=youtube.playlistItems().list(
-#     playlistId="PLD3A38DE4171C4133",
-#     part="snippet",
-#     maxResults=50,
-#     pageToken=next_page_video
-#   ).execute()
-
-#   for p in pl_next["items"]:
-#     videos.append([p["snippet"]["title"],p["snippet"]["resourceId"]["videoId"]])
-
-#   if "nextPageToken" in pl_next:
-#     next_page_video=pl_next["nextPageToken"]
-
-#check it totalreplycount is not zero then go into
-#child comments tree for checking
-
-#check for each comment wheter author id == my channel id
+def get_text_of_comment(cid):
+  """
+  gets the text for a respective comment id
+  """
+  ctext=youtube.comments().list(
+    id=cid,
+    part="snippet",
+    textFormat="plainText"
+  ).execute()
+  return ctext["items"][0]["snippet"]["textDisplay"]
 
 
-#co= youtube.commentThreads().list(
-#  videoId="sar-9cxL1wk",
-#  part="snippet",
-#  maxResults=100
-#  ).execute()
+def get_comments_by_user_on_plvids(user,playlistid):
+  """
+  gets all comments by a specific user on all videos in a specific playlist
+  returns a list with video name, video id and comment text
+  """
+  pli=playlist_items(playlistid)
+  out=[]
+  for vid in pli:
+    for c in get_comment_ids(vid[1]):
+      if(user==c[1]):
+        out.append([vid[0],vid[1],get_text_of_comment(c[0])])
 
-#items_per_page_comments=co["pageInfo"]["resultsPerPage"]
-#page_total_comments=co["pageInfo"]["totalResults"]
+  return out
 
-##next_page_comments=co["nextPageToken"]
 
-#comments=[]
 
-##pprint(co)pprint(co)
-#for c in co["items"]:
-#  if c["id"]==c["snippet"]["topLevelComment"]["id"]:
-#    comments.append(c["id"])
-#  #comments.append([c["snippet"]["title"],c["snippet"]["resourceId"]["videoId"]])
-#pprint(len(comments))
+#pprint(playlist_items("PLD3A38DE4171C4133"))
 
-#for i in range(page_total_comments//items_per_page_comments):
-#  co_next=youtube.commentThreads().list(
-#    videoId=videos[0][1],
-#    part="snippet",
-#    maxResults=100
-#  ).execute()
+pprint(get_comments_by_user_on_plvids("jbs231","PLTo_KBmzxF3sIlOu1Kj1LiF8TXY1o-tv7"))
 
-#  for c in co_next["items"]:
-#    comments.append([c["snippet"]["title"],c["snippet"]["resourceId"]["videoId"]])
 
-#  if "nextPageToken" in co_next:
-#    next_page_video=co_next["nextPageToken"]
+
