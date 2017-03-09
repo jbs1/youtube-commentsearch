@@ -3,9 +3,6 @@
 import httplib2
 import os
 import sys
-
-from pprint import pprint
-
 import getopt
 
 from apiclient.discovery import build
@@ -257,20 +254,14 @@ def main(argv):
       playlistid = arg
 
 
-  pprint(get_comments_by_user_on_plvids(username,playlistid))
+  out=get_comments_by_user_on_plvids(username,playlistid)
+
+  for c in out:
+    print u'Video(ID): {}({})\n----------------------------------------\n{}\n========================================'.format(c[0],c[1],c[2])
 
 
 
 
 if __name__ == '__main__':
   main(sys.argv[1:])
-
-
-
-
-#pprint(playlist_items("PLD3A38DE4171C4133"))
-
-#pprint(get_comments_by_user_on_plvids("jbs231","PLTo_KBmzxF3sIlOu1Kj1LiF8TXY1o-tv7"))
-
-
 
