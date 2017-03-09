@@ -6,6 +6,8 @@ import sys
 
 from pprint import pprint
 
+import getopt
+
 from apiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
@@ -233,9 +235,42 @@ def get_comments_by_user_on_plvids(user,playlistid):
 
 
 
+
+
+def main(argv):
+  try:
+    opts,args=getopt.getopt(argv,"hu:p:")
+  except getopt.GetoptError:
+    print 'main.py -u <user> -p <playlistID>'
+    sys.exit(2)
+
+  username = ''
+  playlistid = ''
+
+  for opt,arg in opts:
+    if opt == '-h':
+      print 'main.py -u <user> -p <playlistID>'
+      sys.exit()
+    elif opt == '-u':
+      username = arg
+    elif opt == '-p':
+      playlistid = arg
+
+
+  pprint(get_comments_by_user_on_plvids(username,playlistid))
+
+
+
+
+if __name__ == '__main__':
+  main(sys.argv[1:])
+
+
+
+
 #pprint(playlist_items("PLD3A38DE4171C4133"))
 
-pprint(get_comments_by_user_on_plvids("jbs231","PLTo_KBmzxF3sIlOu1Kj1LiF8TXY1o-tv7"))
+#pprint(get_comments_by_user_on_plvids("jbs231","PLTo_KBmzxF3sIlOu1Kj1LiF8TXY1o-tv7"))
 
 
 
